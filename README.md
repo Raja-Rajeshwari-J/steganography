@@ -23,3 +23,25 @@ This web application allows users to **hide** secret messages inside images and 
 - **Deployment**: Render  
 
 ---
+## 🖥️ Installation & Local Setup  
+
+#### 1️⃣ Clone the repository  
+```sh
+git clone https://github.com/Raja-Rajeshwari-J/steganography.git
+```
+```sh
+cd steganography
+```
+
+#### 2️⃣ Install dependencies 
+```sh
+pip install -r requirements.txt
+```
+
+#### 3️⃣ Run the Flask application
+```sh
+python app.py
+```
+---
+## 🤝 Contributing
+You're welcome to fork this repository, work on a new feature branch, and submit a **pull request** with your improvements! 🚀
