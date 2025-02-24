@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Steganography</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Image Steganography</h1>
+    <div class="intro">
+        <p>Securely hide messages inside images using steganography! This tool allows you to encode secret text within an image and later retrieve it with ease. Whether you want to send private messages, protect sensitive information, or simply experiment with digital steganography, this website provides a simple and effective solution.</p>
+        <p>Neither the image nor the hidden message is uploaded to the web. Everything happens directly in your browser for complete privacy.</p>
+    </div>
+    
+    <div class="display">
+        <div class="container">
+            <h2>Encrypt Message</h2>
+
+            <div class="instructions">
+                <p>Want to hide a secret message inside an image? It’s simple!<br>
+                    1. Choose an image where you want to embed the message.<br>
+                    2. Enter your message or upload a text file.<br>
+                    3. (Optional) Set a password for extra security.<br>
+                    4. Click "Encode" to hide the message inside the image.<br>
+                    5. Download the encoded image—this is your secret message carrier!<br>
+                    
+                    📌 Note:<br>
+                    
+                    The larger the image, the more text it can hold.<br>
+                    If the image is too small for your message, you’ll be notified.</p>
+            </div>
+
+            <form id="encryptForm" enctype="multipart/form-data">
+                <input type="file" name="image" required><br>
+
+                <label>
+                    <input type="checkbox" id="useText" checked>
+                    Enter Secret Message (Text)
+                </label><br>
+                <textarea name="message" id="messageInput" placeholder="Enter secret message"></textarea>
+
+                <label>
+                    <input type="checkbox" id="useFile">
+                    Upload Secret Message (File)
+                </label><br>
+                <input type="file" name="messageFile" id="messageFileInput" style="display: none;"><br>
+
+                <label>
+                    <input type="checkbox" id="usePassword">
+                    Use Password
+                </label><br>
+                <input type="text" name="password" id="passwordInput" placeholder="Enter password" style="display: none;">
+
+                <button type="submit">Encrypt & Download</button>
+            </form>
+            <div id="encryptResult"></div>
+        </div>
+
+        <div class="container">
+            <h2>Decrypt Message</h2>
+            <div class="instructions">
+                <p>Received an image with a hidden message? Here’s how to reveal it:<br>
+                    1. Choose the encoded image that contains the secret message.<br>
+                    2. (If password-protected) Enter the password used during encoding.<br>
+                    3. Click "Decode" to extract the hidden message.<br>
+                    
+                    📌 Privacy & Security:<br>
+                    
+                    Your data never leaves your device - all encryption and decryption happen entirely in your browser.<br>
+                    No images or messages are transmitted over the internet.</p>
+            </div>
+
+            <form id="decryptForm" enctype="multipart/form-data">
+                <input type="file" name="image" required><br>
+
+                <label>
+                    <input type="checkbox" id="usePasswordDecrypt">
+                    Use Password
+                </label><br>
+                <input type="text" name="password" id="passwordInputDecrypt" placeholder="Enter password" style="display: none;">
+
+                <button type="submit">Decrypt</button>
+            </form>
+            <div id="decryptResultContainer">
+                <div id="decryptResult">Your Decrypted Message shows here...</div>
+                <div class="decrypt-actions" style="display: none;">
+                    <button id="copyButton">Copy to Clipboard</button>
+                    <button id="downloadButton">Download as Text</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("useText").addEventListener("change", function () {
+            document.getElementById("messageInput").style.display = this.checked ? "block" : "none";
+            document.getElementById("useFile").checked = !this.checked;
+            document.getElementById("messageFileInput").style.display = !this.checked ? "block" : "none";
+        });
+
+        document.getElementById("useFile").addEventListener("change", function () {
+            document.getElementById("messageFileInput").style.display = this.checked ? "block" : "none";
+            document.getElementById("useText").checked = !this.checked;
+            document.getElementById("messageInput").style.display = !this.checked ? "block" : "none";
+        });
+
+        document.getElementById("usePassword").addEventListener("change", function () {
+            document.getElementById("passwordInput").style.display = this.checked ? "block" : "none";
+        });
+
+        document.getElementById("usePasswordDecrypt").addEventListener("change", function () {
+            document.getElementById("passwordInputDecrypt").style.display = this.checked ? "block" : "none";
+        });
+
+        document.getElementById("encryptForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            let formData = new FormData(this);
+
+            if (!document.getElementById("useText").checked) {
+                formData.delete("message");
+            } else {
+                formData.delete("messageFile");
+            }
+
+            let originalFile = document.querySelector('input[name="image"]').files[0];
+            if (!originalFile) {
+                alert("Please upload an image!");
+                return;
+            }
+
+            let originalFileName = originalFile.name.split(".")[0]; // Extract filename without extension
+            let encryptedFileName = originalFileName + "_encrypted.png"; // Set correct encrypted file name
+
+            fetch("/encrypt", { method: "POST", body: formData })
+                .then(response => response.blob())
+                .then(blob => {
+                    let url = window.URL.createObjectURL(blob);
+                    let a = document.createElement("a");
+                    a.href = url;
+                    a.download = encryptedFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    let encryptResultDiv = document.getElementById("encryptResult");
+                    encryptResultDiv.style.display = "block";
+                    encryptResultDiv.innerText = "✅ Encryption Successful! Download complete.";
+                })
+                .catch(error => console.error("Error:", error));
+        });
+
+        document.getElementById("decryptForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+            let formData = new FormData(this);
+
+            try{
+                let response = await fetch("/decrypt", { method: "POST", body: formData });
+                let result = await response.json();
+                
+                let decryptResult = document.getElementById("decryptResult");
+                let actionsDiv = document.querySelector(".decrypt-actions");
+
+                if(response.ok) {
+                    decryptResult.innerText = "Decrypted Message:\n" + result.message;
+                    actionsDiv.style.display = "block"; // Show buttons
+
+                    if(result.warning) {
+                        alert(result.warning);
+                    }
+                    // Copy to Clipboard Functionality
+                    document.getElementById("copyButton").onclick = function () {
+                        navigator.clipboard.writeText(result.message);
+                        alert("Message copied to clipboard!");
+                    };
+
+                    // Download as Text File Functionality
+                    document.getElementById("downloadButton").onclick = function () {
+                        let blob = new Blob([result.message], { type: "text/plain" });
+                        let link = document.createElement("a");
+                        link.href = URL.createObjectURL(blob);
+                        link.download = "decrypted_message.txt";
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    };
+                } else {
+                    // ❌ Handle errors from the backend properly
+                    decryptResult.innerText = "Error: " + result.error;
+                    actionsDiv.style.display = "none"; // Hide buttons
+                    alert(result.error); // Show error message as alert
+                }
+            } catch (error) {
+                console.log("Error: ", error);
+                alert("Something went wrong. Please try again!");
+            }
+        });
+    </script>
+
+</body>
+</html>
